@@ -1,0 +1,9 @@
+{
+  "name": "max-chat-export",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "test": "node --test \"test/*.test.js\""
+  },
+  "version": "0.4.0"
+}

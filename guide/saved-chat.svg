@@ -1,0 +1,15 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1080" height="240" viewBox="0 0 1080 240">
+<rect width="1080" height="240" rx="16" fill="#f1f5fb"/>
+<g font-family="Segoe UI,Arial,sans-serif" fill="#192b46">
+<path d="M36 38h38l12 14h40v54H36z" fill="#ffd269" stroke="#d6a039" stroke-width="2"/>
+<text x="150" y="64" font-size="23" font-weight="600">Загрузки → Max-Chat-Export</text>
+<text x="150" y="95" font-size="19" fill="#5a6c87">Здесь появится файл с названием вашего чата</text>
+<path d="M61 133h36l18 18v55H61z" fill="white" stroke="#7b9cc9" stroke-width="2"/>
+<text x="70" y="180" font-size="18" font-weight="700">ZIP</text>
+<text x="143" y="175" font-size="21">Файл с перепиской</text>
+<path d="M380 168h90m-16-12 16 12-16 12" fill="none" stroke="#2563dc" stroke-width="4"/>
+<text x="371" y="211" font-size="17">«Извлечь всё…»</text>
+<path d="M529 135h36l18 18v55h-54z" fill="white" stroke="#7b9cc9" stroke-width="2"/>
+<text x="604" y="165" font-size="23" font-weight="600">messages.html</text>
+<text x="604" y="197" font-size="19" fill="#5a6c87">Двойной щелчок — откроется переписка</text>
+</g></svg>

@@ -1,0 +1,8 @@
+node_modules/
+*.zip
+diagnostics_*.json
+messages.html
+messages.json
+report.txt
+.DS_Store
+Thumbs.db

@@ -1,0 +1,79 @@
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8">
+  <title>Max-Chat-Export</title>
+  <link rel="stylesheet" href="popup.css">
+</head>
+<body>
+  <header>
+    <h1>Экспорт чата MAX</h1>
+  </header>
+
+  <!-- Нет вкладки MAX / нужно обновить / нет входа -->
+  <div id="notice" class="view" hidden>
+    <p id="noticeText"></p>
+    <button id="noticeAction" type="button"></button>
+  </div>
+
+  <!-- Настройки экспорта -->
+  <form id="form" class="view" hidden>
+    <div class="block">
+      <span class="caption">Чат</span>
+      <div id="chatName" class="chat-name">Определяю чат…</div>
+      <span id="chatHint" class="hint"></span>
+    </div>
+
+    <fieldset class="oneline">
+      <legend>История</legend>
+      <label class="check"><input type="checkbox" name="format" value="html" checked> HTML</label>
+      <label class="check"><input type="checkbox" name="format" value="json" checked> JSON</label>
+    </fieldset>
+
+    <fieldset>
+      <legend>Вложения</legend>
+      <label class="check"><input type="checkbox" name="kind" value="photo" checked> Фото</label>
+      <label class="check"><input type="checkbox" name="kind" value="video" checked> Видео</label>
+      <label class="check"><input type="checkbox" name="kind" value="file" checked> Файлы</label>
+      <label class="check"><input type="checkbox" name="kind" value="audio"> Голосовые</label>
+      <div class="choice">
+        <span>Формат фото:</span>
+        <label class="check"><input type="radio" name="imageFormat" value="jpg" checked> JPG</label>
+        <label class="check"><input type="radio" name="imageFormat" value="png"> PNG</label>
+        <label class="check" title="Как отдаёт MAX, без перекодирования — обычно WebP"><input type="radio" name="imageFormat" value="original"> оригинал</label>
+      </div>
+      <label class="inline">Не больше <input id="maxMb" type="number" min="1" step="1" placeholder="∞"> МБ на файл</label>
+    </fieldset>
+
+    <fieldset>
+      <legend>Период</legend>
+      <div class="row">
+        <label class="inline">с <input id="from" type="date"></label>
+        <label class="inline">по <input id="to" type="date"></label>
+      </div>
+    </fieldset>
+
+    <p id="formError" class="error" hidden></p>
+    <button id="start" type="submit">Экспортировать</button>
+  </form>
+
+  <!-- Прогресс и итог -->
+  <div id="progress" class="view" hidden>
+    <p id="progressTitle" class="strong"></p>
+    <progress id="bar" max="1"></progress>
+    <p id="progressText"></p>
+    <p class="hint">Экспорт идёт во вкладке MAX — это окно можно закрыть, вкладку MAX не закрывайте.</p>
+    <div class="row">
+      <button id="openFolder" type="button" hidden>Показать архив</button>
+      <button id="again" type="button" class="secondary" hidden>Новый экспорт</button>
+    </div>
+    <ol id="log" class="log"></ol>
+  </div>
+
+  <footer>
+    <span>Max-Chat-Export · автор: Александр Микеров</span>
+    <button id="diag" type="button" class="link" hidden>Диагностика</button>
+  </footer>
+  <script type="module" src="popup.js"></script>
+</body>
+</html>

@@ -1,0 +1,56 @@
+{
+  "manifest_version": 3,
+  "name": "Max-Chat-Export",
+  "version": "0.4.0",
+  "description": "Сохраняйте переписку, фото, видео, документы и голосовые из MAX на компьютер. Для Chrome и Opera.",
+  "author": "Александр Микеров",
+  "minimum_chrome_version": "116",
+  "action": {
+    "default_title": "Max-Chat-Export",
+    "default_popup": "popup.html"
+  },
+  "background": {
+    "service_worker": "background.js"
+  },
+  "permissions": [
+    "downloads",
+    "offscreen"
+  ],
+  "host_permissions": [
+    "https://web.max.ru/*",
+    "https://*/*"
+  ],
+  "content_scripts": [
+    {
+      "matches": [
+        "https://web.max.ru/*"
+      ],
+      "js": [
+        "lib/protocol.js",
+        "lib/binary.js",
+        "page-hook.js"
+      ],
+      "world": "MAIN",
+      "run_at": "document_start"
+    },
+    {
+      "matches": [
+        "https://web.max.ru/*"
+      ],
+      "js": [
+        "agent.js"
+      ],
+      "run_at": "document_start"
+    }
+  ],
+  "web_accessible_resources": [
+    {
+      "resources": [
+        "lib/*.js"
+      ],
+      "matches": [
+        "https://web.max.ru/*"
+      ]
+    }
+  ]
+}
