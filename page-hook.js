@@ -97,6 +97,14 @@
     return first === 0x7b ? new TextDecoder().decode(bytes) : null;
   }
 
+  // Ошибка MAX: русский заголовок и, в скобках, код и подробность сервера —
+  // по ним видно, что именно не так в запросе.
+  function maxError(p, opcode) {
+    const title = p.localizedMessage || p.title || p.message || p.error || `ошибка MAX (опкод ${opcode})`;
+    const detail = [p.error, p.message].filter((x) => x && x !== title).join(': ');
+    return new Error(detail ? `${title} (${detail})` : title);
+  }
+
   function handleFrame(frame, socket, event) {
     observeAccount(frame, socket);
     const waiter = waiterFor(socket, frame);
@@ -105,8 +113,7 @@
       event?.stopImmediatePropagation?.();
       remember('ext-in', frame);
       const p = frame.payload ?? {};
-      const error = frame.cmd === P.CMD.ERROR || p.error
-        ? new Error(p.localizedMessage || p.message || p.error || `ошибка MAX (опкод ${frame.opcode})`) : null;
+      const error = frame.cmd === P.CMD.ERROR || p.error ? maxError(p, frame.opcode) : null;
       finish(frame.seq, error, p);
     } else {
       if (frame.cmd === P.CMD.RESPONSE || frame.cmd === P.CMD.ERROR) info(socket).appPending.delete(frame.seq);

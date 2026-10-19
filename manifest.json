@@ -1,8 +1,8 @@
 {
   "manifest_version": 3,
   "name": "Max-Chat-Export",
-  "version": "0.4.0",
-  "description": "Сохраняйте переписку, фото, видео, документы и голосовые из MAX на компьютер. Для Chrome и Opera.",
+  "version": "0.6.1",
+  "description": "Сохраняйте переписку, фото, видео, документы и голосовые из веб-версии MAX (web.max.ru). Для Chrome, Opera и Opera GX.",
   "author": "Александр Микеров",
   "minimum_chrome_version": "116",
   "action": {

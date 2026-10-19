@@ -71,7 +71,7 @@ test('runExport packs every selected attachment into one archive with a folder p
   assert.match(files.get('report.txt'), /битый\.pdf — FILE_NOT_FOUND/);
   assert.match(files.get('report.txt'), /История: 5 сообщений за .* просили по 1000/);
   const videoCall = calls.find((c) => c.opcode === 83);
-  assert.equal(videoCall.payload.messageId, '116762160362694585');
+  assert.equal(videoCall.payload.messageId.__mce_raw__, '116762160362694585');
   assert.equal(videoCall.payload.token, 'vt');
   assert.deepEqual([progress[0], progress.at(-1)], ['history', 'done']);
 });
@@ -245,4 +245,127 @@ test('a failed export drops the unfinished archive and saves nothing', async () 
   await assert.rejects(runExport({ request: broken, archive, chatId: 1, options: ALL, now: NOW, timeZone: MSK }), /Ошибка валидации/);
   assert.equal(archive.dropped, true);
   assert.deepEqual(archive.saved, []);
+});
+
+test('when MAX rejects the request format, other files of that type fail at once instead of being sent again', async () => {
+  const messages = makeMessages(4);
+  messages.forEach((m, i) => { m.attaches = [{ _type: 'FILE', fileId: 600 + i, name: `Вес ${i}.docx`, size: 10 }]; });
+  const { request } = fakeMax(messages);
+  let fileCalls = 0;
+  const strict = async (opcode, payload) => {
+    if (opcode === 88) {
+      fileCalls++;
+      throw new Error('Ошибка валидации (proto.payload: Expected number at 31)');
+    }
+    return request(opcode, payload);
+  };
+  const result = await runExport({ request: strict, archive: fakeArchive(), chatId: 1, options: ALL, now: NOW, timeZone: MSK });
+  assert.equal(fileCalls, 1);
+  assert.equal(result.failed, 4);
+  assert.ok(result.items.every((i) => /proto\.payload/.test(i.error)));
+});
+
+test('file and video links are requested with the message ID as a number', async () => {
+  const { calls } = await exportWith(ALL);
+  for (const opcode of [88, 83]) {
+    const { messageId } = calls.find((c) => c.opcode === opcode).payload;
+    assert.equal(typeof messageId, 'object', 'beyond 2^53 the exact value travels as a raw number');
+    assert.match(messageId.__mce_raw__, /^1167621603626945\d\d$/);
+  }
+});
+
+test('files outside the chosen formats are listed as skipped by format in the report and the HTML', async () => {
+  const { downloads, files, result } = await exportWith({ ...ALL, kinds: ['file'], fileTypes: ['pdf'] });
+  assert.deepEqual(downloads.map((d) => d.url), ['https://fd.oneme.ru/f/502']);
+  assert.match(files.get('report.txt'), /Файлы: всего 2, скачано 1, .*не тот формат 1/);
+  assert.match(files.get('messages.html'), /\[Файл другого формата: Document тренировка\.xlsx\]/);
+  assert.equal(result.skipped, 3, 'two by type, one by format');
+});
+
+test('links export: links.html and links.csv in the archive, alone or with the history', async () => {
+  const messages = makeMessages(3);
+  messages[0].text = 'отчёт https://drive.example/a';
+  messages[2].attaches = [{ _type: 'SHARE', url: 'https://youtu.be/xyz', title: 'Голы тура' }];
+  for (const html of [true, false]) {
+    const { request } = fakeMax(messages);
+    const archive = fakeArchive();
+    const result = await runExport({
+      request, archive, chatId: 1, now: NOW, timeZone: MSK,
+      options: { ...ALL, formats: { html, json: false }, kinds: [], links: { html: true, csv: true } },
+    });
+    assert.deepEqual([...archive.files.keys()].sort(), [...(html ? ['messages.html'] : []), 'links.csv', 'links.html', 'report.txt'].sort());
+    assert.match(archive.files.get('links.csv'), /"https:\/\/drive\.example\/a"/);
+    assert.match(archive.files.get('links.html'), /Голы тура/);
+    assert.match(archive.files.get('report.txt'), /Ссылок: 2/);
+    assert.equal(result.links, 2);
+  }
+});
+
+test('without the links row no link files are written', async () => {
+  const { files } = await exportWith(ALL);
+  assert.ok(!files.has('links.html') && !files.has('links.csv'));
+});
+
+test('links export adds browser shortcuts into the Ссылки folder', async () => {
+  const messages = makeMessages(2);
+  messages[0].text = 'отчёт https://drive.example/a и ещё раз https://drive.example/a';
+  messages[1].text = 'видео https://youtu.be/xyz';
+  const { request } = fakeMax(messages);
+  const archive = fakeArchive();
+  await runExport({ request, archive, chatId: 1, now: NOW, timeZone: MSK,
+    options: { ...ALL, formats: {}, kinds: [], links: { shortcuts: true } } });
+  assert.deepEqual([...archive.files.keys()].filter((k) => k.startsWith('Ссылки/')).sort(), [
+    'Ссылки/2026-10-18_19-30-00_drive.example a.url',
+    'Ссылки/2026-10-18_19-31-00_youtu.be xyz.url',
+  ]);
+});
+
+test('row filters: messages by text, links by address or title, files by name', async () => {
+  const messages = makeMessages(4);
+  messages[0].text = 'Тренировка завтра https://youtu.be/train';
+  messages[1].text = 'обед https://drive.example/menu';
+  messages[2].attaches = [{ _type: 'FILE', fileId: 1, name: 'Отчет 14.10.pdf', size: 10 }];
+  messages[3].attaches = [{ _type: 'FILE', fileId: 2, name: 'Вес.docx', size: 10 }];
+  const { request } = fakeMax(messages);
+  const archive = fakeArchive();
+  const result = await runExport({ request, archive, chatId: 1, now: NOW, timeZone: MSK, options: {
+    ...ALL, kinds: ['file'], links: { csv: true },
+    filters: { messages: 'тренировк', links: 'youtu', file: '^отч' },
+  } });
+  const json = JSON.parse(archive.files.get('messages.json'));
+  assert.deepEqual(json.messages.map((m) => m.text), ['Тренировка завтра https://youtu.be/train']);
+  assert.match(archive.files.get('links.csv'), /youtu\.be\/train/);
+  assert.doesNotMatch(archive.files.get('links.csv'), /drive\.example/);
+  assert.deepEqual(archive.added.map((a) => a.path), ['Файлы/2026-10-18_19-32-00_Отчет 14.10.pdf']);
+  const report = archive.files.get('report.txt');
+  assert.match(report, /Сообщений: 1 \(по фильтру, из 4\)/);
+  assert.match(report, /не подошло под фильтр 1/);
+  assert.equal(result.messages, 1);
+});
+
+test('a broken filter stops the export before MAX is asked anything', async () => {
+  let asked = 0;
+  const archive = fakeArchive();
+  await assert.rejects(runExport({ request: async () => { asked++; return {}; }, archive, chatId: 1, now: NOW, timeZone: MSK,
+    options: { ...ALL, filters: { messages: '([' } } }), /неверный фильтр «Сообщения»/);
+  assert.equal(asked, 0);
+  assert.deepEqual(archive.saved, []);
+});
+
+test('only the chosen senders are exported: messages, links and attachments', async () => {
+  const messages = makeMessages(4).map((m, i) => ({ ...m, sender: [42, 43, 555, 43][i] }));
+  messages[0].text = 'от Контакт https://youtu.be/a';
+  messages[1].text = 'от тренера https://youtu.be/b';
+  messages[2].attaches = [{ _type: 'FILE', fileId: 1, name: 'мой.pdf', size: 10 }];
+  messages[3].attaches = [{ _type: 'FILE', fileId: 2, name: 'тренера.pdf', size: 10 }];
+  const { request } = fakeMax(messages);
+  const archive = fakeArchive();
+  await runExport({ request, archive, chatId: 1, now: NOW, timeZone: MSK, options: {
+    ...ALL, kinds: ['file'], links: { csv: true }, senders: ['42', '555'],
+  } });
+  assert.deepEqual(JSON.parse(archive.files.get('messages.json')).messages.map((m) => m.senderId), ['42', '555']);
+  assert.match(archive.files.get('links.csv'), /youtu\.be\/a/);
+  assert.doesNotMatch(archive.files.get('links.csv'), /youtu\.be\/b/);
+  assert.deepEqual(archive.added.map((a) => a.path), ['Файлы/2026-10-18_19-32-00_мой.pdf']);
+  assert.match(archive.files.get('report.txt'), /Отправители: выбрано 2/);
 });

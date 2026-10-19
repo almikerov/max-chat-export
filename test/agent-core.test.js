@@ -31,7 +31,7 @@ const OPTIONS = { formats: { html: true, json: false }, kinds: ['file', 'video']
 
 test('agent names the open group chat and exports it in the background as one archive', async () => {
   const { agent, ext, notified } = setup();
-  assert.deepEqual(await agent.handle({ type: 'chat', chatId: '-72013802979440' }), { id: '-72013802979440', title: 'Пример чата', type: null });
+  assert.deepEqual(await agent.handle({ type: 'chat', chatId: '-72013802979440' }), { id: '-72013802979440', title: 'Пример чата', type: null, participants: [] });
 
   assert.deepEqual(await agent.handle({ type: 'start', chatId: '-72013802979440', title: 'Пример чата', options: OPTIONS }), { started: true });
   await assert.rejects(() => agent.handle({ type: 'start', chatId: '1', options: OPTIONS }), /уже идёт/);
@@ -116,8 +116,9 @@ test('popup shows Контакт by the peer ID and saved name, never by the dia
   assert.equal(info.title, 'Контакт');
   assert.equal(info.type, 'DIALOG');
   const ids = calls.filter((c) => c.opcode === 32).flatMap((c) => c.payload.contactIds).map(String);
-  assert.deepEqual(ids, ['3260456']);
+  assert.deepEqual(ids.sort(), ['3260456', '555'], 'the peer and you, for the sender filter');
   assert.ok(!ids.includes(chatId));
+  assert.deepEqual(info.participants.map((p) => [p.id, p.self]), [['555', true], ['3260456', false]]);
 });
 
 test('popup shows non-contacts by their public profile and handles an empty history', async () => {
@@ -213,4 +214,14 @@ test('a failed export saves no archive', async () => {
   await agent.start({ chatId: '1', title: 'Чат', options: OPTIONS });
   assert.match(agent.state.error, /Ошибка валидации/);
   assert.ok(!opened.includes('archiveSave'));
+});
+
+test('the popup gets the chat members with names, you first and marked', async () => {
+  const { agent } = setup({ chat: { id: -72013802979440, type: 'CHAT', title: 'Пример чата', participants: { 3260456: 1, 555: 1, 9000000000003: 1 } } });
+  const info = await agent.handle({ type: 'chat', chatId: '-72013802979440' });
+  assert.deepEqual(info.participants, [
+    { id: '555', name: 'Игрок 555', self: true },
+    { id: '9000000000003', name: 'Видеоаналитик', self: false },
+    { id: '3260456', name: 'Тренер', self: false },
+  ]);
 });

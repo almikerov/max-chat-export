@@ -1,8 +1,10 @@
 import { KINDS } from './lib/attachments.js';
 import { formatSize } from './lib/render.js';
+import { compileFilters } from './lib/filters.js';
 
 const $ = (id) => document.getElementById(id);
-const OPTIONS_KEY = 'mce-options';
+// v2: с версии 0.4.3 по умолчанию включены только сообщения — прежний выбор сбрасывается один раз.
+const OPTIONS_KEY = 'mce-options-v2';
 const VIEWS = ['notice', 'form', 'progress'];
 
 let tab = null;
@@ -65,6 +67,7 @@ async function loadChat() {
 
   const info = await agent('chat', { chatId: preferredChatId }).catch((error) => ({ error: error.message }));
   currentChat = { id: preferredChatId, title: info.title ?? null };
+  renderSenders(info.participants ?? []);
   name.textContent = info.title ?? `Чат ${preferredChatId}`;
   name.className = info.title ? 'chat-name' : 'chat-name muted';
   if (info.error) {
@@ -74,10 +77,75 @@ async function loadChat() {
   $('start').disabled = false;
 }
 
+// ---------- отправители ----------
+
+const senderInputs = () => [...document.querySelectorAll('input[name="sender"]')];
+// При поиске «Все» относится только к найденным.
+const visibleSenders = () => senderInputs().filter((input) => !input.closest('label').hidden);
+
+// Сводка в заголовке свёрнутого блока и состояние «Все» — по текущему выбору.
+function updateSenders() {
+  const all = senderInputs();
+  const on = all.filter((input) => input.checked).length;
+  const summary = $('sendersSummary');
+  summary.textContent = on === all.length ? 'все' : on ? `выбрано ${on} из ${all.length}` : 'никто не выбран';
+  summary.classList.toggle('bad', on === 0);
+  const visible = visibleSenders();
+  const visibleOn = visible.filter((input) => input.checked).length;
+  $('allSenders').checked = visible.length > 0 && visibleOn === visible.length;
+  $('allSenders').indeterminate = visibleOn > 0 && visibleOn < visible.length;
+  $('allSendersLabel').textContent = $('senderSearch').value.trim() ? 'Все найденные' : 'Все';
+  $('sendersEmpty').hidden = visible.length > 0;
+}
+
+// Имена приходят из MAX — только textContent, без разметки.
+function renderSenders(participants) {
+  const list = $('senders');
+  list.replaceChildren();
+  for (const p of participants) {
+    const label = document.createElement('label');
+    label.className = 'check';
+    const input = document.createElement('input');
+    Object.assign(input, { type: 'checkbox', name: 'sender', value: p.id, checked: true });
+    const name = `${p.name ?? `ID ${p.id}`}${p.self ? ' (вы)' : ''}`;
+    label.title = name;
+    label.dataset.search = name.toLowerCase();
+    label.append(input, ` ${name}`);
+    list.append(label);
+  }
+  $('senderSearch').value = '';
+  $('sendersBox').open = false;
+  $('sendersBox').hidden = participants.length < 2;
+  updateSenders();
+}
+
+$('senderSearch').addEventListener('input', () => {
+  const query = $('senderSearch').value.trim().toLowerCase();
+  for (const label of $('senders').children) label.hidden = !!query && !label.dataset.search.includes(query);
+  updateSenders();
+});
+// Enter в поиске не отправляет форму.
+$('senderSearch').addEventListener('keydown', (event) => {
+  if (event.key === 'Enter') event.preventDefault();
+});
+$('allSenders').addEventListener('change', () => {
+  for (const input of visibleSenders()) input.checked = $('allSenders').checked;
+  updateSenders();
+});
+$('senders').addEventListener('change', updateSenders);
+
+// null — все отправители (без фильтра).
+function readSenders() {
+  if ($('sendersBox').hidden) return null;
+  const chosen = checked('sender');
+  return chosen.length === document.querySelectorAll('input[name="sender"]').length ? null : chosen;
+}
+
 // ---------- настройки ----------
 
 const checked = (name) => [...document.querySelectorAll(`input[name="${name}"]:checked`)].map((i) => i.value);
 const IMAGE_FORMATS = ['jpg', 'png', 'original'];
+const FILE_TYPES = ['pdf', 'word', 'excel', 'other'];
 
 function dayStart(value, endOfDay) {
   if (!value) return null;
@@ -85,23 +153,48 @@ function dayStart(value, endOfDay) {
   return endOfDay ? new Date(y, m - 1, d, 23, 59, 59, 999).getTime() : new Date(y, m - 1, d).getTime();
 }
 
+// Снятая строка «что скачать» гасит свои настройки справа.
+// «Сообщения» выключены — история не сохраняется, в архиве только вложения и отчёт.
+const rowToggle = (row) => ['messages', 'links'].includes(row) ? $(row) : document.querySelector(`input[name="kind"][value="${row}"]`);
+
+function syncRows() {
+  for (const opts of document.querySelectorAll('[data-row]')) {
+    const on = rowToggle(opts.dataset.row).checked;
+    opts.classList.toggle('off', !on);
+    for (const input of opts.querySelectorAll('input, select')) input.disabled = !on;
+  }
+}
+
 function readOptions() {
-  const formats = checked('format');
+  const formats = $('messages').checked ? checked('format') : [];
   const maxMb = Number($('maxMb').value) || null;
   return {
     formats: { html: formats.includes('html'), json: formats.includes('json') },
-    kinds: checked('kind'),
+    // Файлы без единого выбранного формата — то же, что снятые «Файлы».
+    kinds: checked('kind').filter((kind) => kind !== 'file' || checked('fileType').length),
+    fileTypes: checked('fileType'),
+    // Отдельный список ссылок из сообщений: links.html и/или links.csv.
+    links: $('links').checked ? {
+      html: checked('linkFormat').includes('html'),
+      csv: checked('linkFormat').includes('csv'),
+      shortcuts: checked('linkFormat').includes('shortcuts'),
+    } : null,
+    // Фильтры только у включённых строк; не запоминаются между запусками.
+    filters: Object.fromEntries([...document.querySelectorAll('.re:not(:disabled)')]
+      .filter((i) => i.value.trim()).map((i) => [i.dataset.filter, i.value])),
+    senders: readSenders(),
     fromMs: dayStart($('from').value, false),
     toMs: dayStart($('to').value, true),
     maxBytes: maxMb ? maxMb * 1024 * 1024 : null,
-    imageFormat: checked('imageFormat')[0] ?? 'jpg',
+    imageFormat: $('imageFormat').value,
   };
 }
 
 function saveForm() {
   try {
     localStorage.setItem(OPTIONS_KEY, JSON.stringify({
-      formats: checked('format'), kinds: checked('kind'), imageFormat: checked('imageFormat')[0],
+      messages: $('messages').checked, formats: checked('format'), kinds: checked('kind'), imageFormat: $('imageFormat').value,
+      fileTypes: checked('fileType'), links: $('links').checked, linkFormats: checked('linkFormat'),
       from: $('from').value, to: $('to').value, maxMb: $('maxMb').value,
     }));
   } catch { /* не критично */ }
@@ -113,10 +206,16 @@ function restoreForm() {
     form = JSON.parse(localStorage.getItem(OPTIONS_KEY));
   } catch { /* нет сохранённого */ }
   if (!form) return;
+  $('messages').checked = form.messages !== false;
+  $('links').checked = form.links === true;
+  const linkFormats = Array.isArray(form.linkFormats) ? form.linkFormats : ['html', 'csv', 'shortcuts'];
+  for (const input of document.querySelectorAll('input[name="linkFormat"]')) input.checked = linkFormats.includes(input.value);
   for (const input of document.querySelectorAll('input[name="format"]')) input.checked = form.formats.includes(input.value);
   for (const input of document.querySelectorAll('input[name="kind"]')) input.checked = form.kinds.includes(input.value);
   const imageFormat = IMAGE_FORMATS.includes(form.imageFormat) ? form.imageFormat : 'jpg';
-  for (const input of document.querySelectorAll('input[name="imageFormat"]')) input.checked = input.value === imageFormat;
+  $('imageFormat').value = imageFormat;
+  const fileTypes = Array.isArray(form.fileTypes) ? form.fileTypes : FILE_TYPES;
+  for (const input of document.querySelectorAll('input[name="fileType"]')) input.checked = fileTypes.includes(input.value);
   $('from').value = form.from ?? '';
   $('to').value = form.to ?? '';
   $('maxMb').value = form.maxMb ?? '';
@@ -159,7 +258,8 @@ function renderProgress(s) {
   else if (s.summary) {
     const m = s.summary;
     const history = m.history ? ` История прочитана за ${(m.history.ms / 1000).toFixed(1)} с.` : '';
-    $('progressText').textContent = `Готово: сообщений ${m.messages}, файлов в архиве ${m.downloaded}, не скачано ${m.failed}, пропущено ${m.skipped}.${history} Архив: Загрузки/${m.archive}`;
+    const links = m.links === null || m.links === undefined ? '' : ` Ссылок: ${m.links}.`;
+    $('progressText').textContent = `Готово: сообщений ${m.messages}, файлов в архиве ${m.downloaded}, не скачано ${m.failed}, пропущено ${m.skipped}.${links}${history} Архив: Загрузки/${m.archive}`;
   }
 
   lastDownloadId = s.lastDownloadId;
@@ -198,14 +298,43 @@ globalThis.chrome?.runtime?.onMessage?.addListener((msg) => {
 
 // ---------- действия ----------
 
-for (const input of document.querySelectorAll('#form input')) input.addEventListener('change', saveForm);
+for (const input of document.querySelectorAll('#form input, #form select')) input.addEventListener('change', saveForm);
+for (const row of new Set([...document.querySelectorAll('[data-row]')].map((el) => el.dataset.row))) {
+  rowToggle(row).addEventListener('change', syncRows);
+}
+// Неверное выражение подсвечивается сразу, пока его набирают.
+for (const input of document.querySelectorAll('.re')) {
+  input.addEventListener('input', () => {
+    let bad = false;
+    try {
+      compileFilters({ [input.dataset.filter]: input.value });
+    } catch {
+      bad = true;
+    }
+    input.classList.toggle('bad', bad);
+  });
+}
 
 $('form').addEventListener('submit', async (event) => {
   event.preventDefault();
   const options = readOptions();
   const error = $('formError');
-  if (!options.formats.html && !options.formats.json && !options.kinds.length) {
-    error.textContent = 'Выберите формат истории или хотя бы один тип вложений.';
+  const links = options.links?.html || options.links?.csv || options.links?.shortcuts;
+  let problem = null;
+  if (!options.formats.html && !options.formats.json && !links && !options.kinds.length) {
+    problem = 'Выберите, что скачать: сообщения, ссылки или хотя бы один тип вложений.';
+  } else if (options.senders?.length === 0) {
+    problem = 'Выберите хотя бы одного отправителя.';
+    $('sendersBox').open = true;
+  } else {
+    try {
+      compileFilters(options.filters);
+    } catch (e) {
+      problem = `${e.message[0].toUpperCase()}${e.message.slice(1)}.`;
+    }
+  }
+  if (problem) {
+    error.textContent = problem;
     error.hidden = false;
     return;
   }
@@ -246,6 +375,7 @@ $('diag').addEventListener('click', async () => {
 
 async function init() {
   restoreForm();
+  syncRows();
   tab = await findMaxTab();
   if (!tab) {
     notice('Откройте web.max.ru в этом браузере и войдите в аккаунт.', 'Открыть MAX', () => chrome.tabs.create({ url: 'https://web.max.ru/' }));
@@ -295,6 +425,11 @@ function demo() {
   preferredChatId = '-72013802979440';
   currentChat = { id: preferredChatId, title: 'Пример чата' };
   $('chatName').textContent = currentChat.title;
+  renderSenders([
+    { id: '1', name: 'Игрок', self: true }, { id: '2', name: 'Видеоаналитик', self: false },
+    { id: '3', name: 'Врач команды', self: false }, { id: '4', name: 'Тренер', self: false },
+  ]);
+  syncRows();
   show('form');
   $('diag').hidden = false;
 }

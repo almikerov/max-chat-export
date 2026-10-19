@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { localParts, sanitizeName, selectAttachments } from '../lib/attachments.js';
+import { fileGroup, localParts, sanitizeName, selectAttachments } from '../lib/attachments.js';
 import { T0 } from './fake-max.js';
 
 const MSK = 'Europe/Moscow';
@@ -58,4 +58,26 @@ test('selectAttachments numbers files with the same name in the same second', ()
     { ...message([{ _type: 'FILE', fileId: 2, name: 'Report.pdf', size: 1 }]), id: '2' },
   ], { timeZone: MSK });
   assert.deepEqual(items.map((i) => i.path), ['Файлы/2026-10-18_19-30-00_report.pdf', 'Файлы/2026-10-18_19-30-00_Report_2.pdf']);
+});
+
+test('fileGroup sorts documents into PDF, Word, Excel and other by extension', () => {
+  const cases = [
+    ['Отчет 14.10.26 ВЕЧЕР.pdf', 'pdf'], ['Вес.DOCX', 'word'], ['старый.doc', 'word'], ['заметки.rtf', 'word'],
+    ['Document 18.10.xlsx', 'excel'], ['gps.csv', 'excel'], ['таблица.xls', 'excel'],
+    ['клип.mp4', 'other'], ['архив.zip', 'other'], ['без расширения', 'other'],
+  ];
+  for (const [name, group] of cases) assert.equal(fileGroup(name), group, name);
+});
+
+test('selectAttachments keeps only the chosen file formats and marks the rest as skipped by format', () => {
+  const items = selectAttachments([message([
+    { _type: 'FILE', fileId: 1, name: 'Отчет.pdf', size: 10 },
+    { _type: 'FILE', fileId: 2, name: 'Вес.docx', size: 10 },
+    { _type: 'FILE', fileId: 3, name: 'Document.xlsx', size: 10 },
+    { _type: 'PHOTO', photoId: 4, baseUrl: 'u' },
+  ])], { fileTypes: ['pdf', 'excel'], timeZone: MSK });
+  assert.deepEqual(items.map((i) => [i.name, i.status]), [
+    ['Отчет.pdf', 'pending'], ['Вес.docx', 'skipped-format'], ['Document.xlsx', 'pending'], ['photo_4.jpg', 'pending'],
+  ]);
+  assert.equal(items[1].path, null);
 });

@@ -24,26 +24,67 @@
       <span id="chatHint" class="hint"></span>
     </div>
 
-    <fieldset class="oneline">
-      <legend>История</legend>
-      <label class="check"><input type="checkbox" name="format" value="html" checked> HTML</label>
-      <label class="check"><input type="checkbox" name="format" value="json" checked> JSON</label>
-    </fieldset>
-
+    <!-- «Тип» — что скачать, «Формат» — в каком виде, «Фильтр» — RegEx. Снятая строка гасит свои настройки. -->
     <fieldset>
-      <legend>Вложения</legend>
-      <label class="check"><input type="checkbox" name="kind" value="photo" checked> Фото</label>
-      <label class="check"><input type="checkbox" name="kind" value="video" checked> Видео</label>
-      <label class="check"><input type="checkbox" name="kind" value="file" checked> Файлы</label>
-      <label class="check"><input type="checkbox" name="kind" value="audio"> Голосовые</label>
-      <div class="choice">
-        <span>Формат фото:</span>
-        <label class="check"><input type="radio" name="imageFormat" value="jpg" checked> JPG</label>
-        <label class="check"><input type="radio" name="imageFormat" value="png"> PNG</label>
-        <label class="check" title="Как отдаёт MAX, без перекодирования — обычно WebP"><input type="radio" name="imageFormat" value="original"> оригинал</label>
+      <div class="pick">
+        <span class="head">Тип</span>
+        <span class="head">Формат</span>
+        <span class="head">Фильтр</span>
+
+        <label class="check kind"><input type="checkbox" id="messages" checked> Сообщения</label>
+        <div class="opts" data-row="messages">
+          <label class="check"><input type="checkbox" name="format" value="html" checked> HTML</label>
+          <label class="check"><input type="checkbox" name="format" value="json" checked> JSON</label>
+        </div>
+        <div class="filter" data-row="messages"><input type="text" class="re" data-filter="messages" placeholder="RegEx" title="Только сообщения, текст которых подходит под RegEx, без учёта регистра" spellcheck="false" autocomplete="off"></div>
+
+        <label class="check kind" title="Отдельный список всех ссылок из сообщений"><input type="checkbox" id="links"> Ссылки</label>
+        <div class="opts" data-row="links">
+          <label class="check"><input type="checkbox" name="linkFormat" value="html" checked> HTML</label>
+          <label class="check" title="Для Excel"><input type="checkbox" name="linkFormat" value="csv" checked> CSV</label>
+          <label class="check" title="Папка «Ссылки» с ярлыками .url — открываются в браузере"><input type="checkbox" name="linkFormat" value="shortcuts" checked> Ярлыки</label>
+        </div>
+        <div class="filter" data-row="links"><input type="text" class="re" data-filter="links" placeholder="RegEx" title="По адресу или заголовку ссылки, без учёта регистра" spellcheck="false" autocomplete="off"></div>
+
+        <label class="check kind"><input type="checkbox" name="kind" value="photo"> Фото</label>
+        <div class="opts" data-row="photo">
+          <select id="imageFormat" aria-label="Формат фото">
+            <option value="jpg" selected>JPG</option>
+            <option value="png">PNG</option>
+            <option value="original" title="Как отдаёт MAX, без перекодирования — обычно WebP">Оригинал</option>
+          </select>
+        </div>
+        <div class="filter" data-row="photo"><input type="text" class="re" data-filter="photo" placeholder="RegEx" title="По имени файла, без учёта регистра" spellcheck="false" autocomplete="off"></div>
+
+        <label class="check kind"><input type="checkbox" name="kind" value="video"> Видео</label>
+        <div class="opts" data-row="video"></div>
+        <div class="filter" data-row="video"><input type="text" class="re" data-filter="video" placeholder="RegEx" title="По имени файла, без учёта регистра" spellcheck="false" autocomplete="off"></div>
+
+        <label class="check kind"><input type="checkbox" name="kind" value="file"> Файлы</label>
+        <div class="opts" data-row="file">
+          <label class="check"><input type="checkbox" name="fileType" value="pdf" checked> PDF</label>
+          <label class="check" title="doc, docx, rtf, odt"><input type="checkbox" name="fileType" value="word" checked> Word</label>
+          <label class="check" title="xls, xlsx, xlsm, csv, ods"><input type="checkbox" name="fileType" value="excel" checked> Excel</label>
+          <label class="check" title="Всё остальное: zip, mp4, pptx, txt…"><input type="checkbox" name="fileType" value="other" checked> другие</label>
+        </div>
+        <div class="filter" data-row="file"><input type="text" class="re" data-filter="file" placeholder="RegEx" title="По имени файла, без учёта регистра" spellcheck="false" autocomplete="off"></div>
+
+        <label class="check kind"><input type="checkbox" name="kind" value="audio"> Голосовые</label>
+        <div class="opts" data-row="audio"></div>
+        <div class="filter" data-row="audio"><input type="text" class="re" data-filter="audio" placeholder="RegEx" title="По имени файла, без учёта регистра" spellcheck="false" autocomplete="off"></div>
       </div>
       <label class="inline">Не больше <input id="maxMb" type="number" min="1" step="1" placeholder="∞"> МБ на файл</label>
     </fieldset>
+
+    <!-- Отправители: появляется, когда в чате больше одного участника; свёрнут, в заголовке — текущий выбор.
+         Все отмечены — без фильтра. -->
+    <details id="sendersBox" class="box" hidden>
+      <summary>Отправители: <span id="sendersSummary">все</span></summary>
+      <input type="search" id="senderSearch" placeholder="Поиск по имени" autocomplete="off" spellcheck="false">
+      <label class="check"><input type="checkbox" id="allSenders" checked> <span id="allSendersLabel">Все</span></label>
+      <div id="senders" class="senders"></div>
+      <p id="sendersEmpty" class="hint" hidden>Никого не найдено</p>
+    </details>
 
     <fieldset>
       <legend>Период</legend>

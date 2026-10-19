@@ -40,7 +40,7 @@ function makePage({ storage = {}, serve }) {
     send(data) {
       this.sent.push(data);
       const frame = typeof data === 'string' ? JSON.parse(data) : B.parseFrame(data);
-      let answer = serve(frame, this);
+      let answer = serve(frame, this, data);
       if (typeof data !== 'string' && typeof answer === 'string') {
         const parsed = JSON.parse(answer);
         // A binary connection answers in binary; preserve JSON's large IDs as Long.
@@ -94,6 +94,15 @@ function makePage({ storage = {}, serve }) {
 
 const tick = () => new Promise((r) => setTimeout(r, 5));
 
+// MessagePack marker of a map value by key: 0xc7 = ext (Long), 0xa0–0xbf / 0xd9 = string.
+function wireMarker(bytes, key) {
+  const name = new TextEncoder().encode(key);
+  for (let i = 10; i < bytes.length - name.length; i++) {
+    if (bytes[i] === (0xa0 | name.length) && name.every((b, j) => bytes[i + 1 + j] === b)) return bytes[i + 1 + name.length];
+  }
+  return null;
+}
+
 // The app's connection after its LOGIN: only then does the exporter use it.
 async function loggedInApp(page, url = 'wss://api.oneme.ru/websocket') {
   const app = new page.ctx.WebSocket(url);
@@ -135,7 +144,7 @@ test('server errors come back as readable failures', async () => {
   await loggedInApp(page, 'wss://ws-api.oneme.ru/websocket');
   const reply = await page.ask({ type: 'request', opcode: 88, payload: { chatId: 1, messageId: '1', fileId: 2 } });
   assert.equal(reply.ok, false);
-  assert.equal(reply.data, 'Файл не найден');
+  assert.equal(reply.data, 'Файл не найден (file.not.found)');
 });
 
 test('without an app socket it logs in with the stored web session', async () => {
@@ -254,7 +263,7 @@ test('compressed Blob responses work; MAX errors under cmd=1 are failures', asyn
   assert.equal((await page.ask({ type: 'request', opcode: 49, payload: {} })).ok, true);
   const error = await page.ask({ type: 'request', opcode: 88, payload: {} });
   assert.equal(error.ok, false);
-  assert.equal(error.data, 'Файл не найден');
+  assert.equal(error.data, 'Файл не найден (file.not.found)');
 });
 
 test('unsupported binary compression gives an explicit failure instead of a timeout', async () => {
@@ -325,7 +334,11 @@ test('full agent export runs history, contact lookup and attachment URLs over bi
   const messages = [{ id: 116762160362694583n, time, sender: 116940556,
     text: 'Тренировка', attaches: [{ _type: 'FILE', fileId: 1844674407370955161n, name: 'Document.xlsx', size: 1234 },
       { _type: 'VIDEO', videoId: 116762160362694590n, token: 'private-video-token' }] }];
-  const page = makePage({ serve: (frame) => {
+  const page = makePage({ serve: (frame, _socket, raw) => {
+    // Like the current binary MAX: file and video requests need messageId as a number.
+    if ((frame.opcode === 88 || frame.opcode === 83) && wireMarker(raw, 'messageId') !== 0xc7) {
+      return binaryReply(frame, { error: 'proto.payload', message: 'Expected number at 31', localizedMessage: 'Ошибка валидации' }, { cmd: 3 });
+    }
     switch (frame.opcode) {
       case 48: return binaryReply(frame, { chats: [{ id: -72013736853616, type: 'CHAT', title: 'Пример чата' }] });
       case 49: return binaryReply(frame, { chat: { title: 'Пример чата' }, messages: frame.payload.from > time ? messages : [] });
@@ -379,7 +392,7 @@ test('popup resolves a personal dialog from captured binary LOGIN and real profi
       if (frame.opcode === 48) return binaryReply(frame, { chats: [{ id: Number(chatId), type: 'DIALOG', title: 'Мария',
         participants: { [selfId]: 1, [peerId]: 1 } }] });
       if (frame.opcode === 32) {
-        assert.deepEqual(frame.payload.contactIds, [peerId]);
+        assert.ok(!frame.payload.contactIds.map(String).includes(chatId), 'the dialog ID is never looked up as a person');
         return binaryReply(frame, { contacts: [{ id: peerId, names: [
           { type: 'ONEME', firstName: 'Мария', lastName: 'Петрова' },
           ...(saved ? [{ type: 'CUSTOM', name: 'Контакт' }] : []),
@@ -487,4 +500,12 @@ test('if the app logs in on a new connection before closing the old one, request
   const reply = await page.ask({ type: 'request', opcode: 49, payload: {}, timeoutMs: 1000 });
   assert.equal(reply.ok, true);
   assert.ok(fresh.sent.some((d) => B.parseFrame(d).opcode === 49));
+});
+
+test('a MAX protocol error carries the server detail, not only the localized title', async () => {
+  const page = makePage({ serve: (frame) => binaryReply(frame,
+    { error: 'proto.payload', message: 'Expected number at 31', localizedMessage: 'Ошибка валидации', title: 'Ошибка валидации' }, { cmd: 3 }) });
+  await loggedInApp(page);
+  const reply = await page.ask({ type: 'request', opcode: 88, payload: {} });
+  assert.equal(reply.data, 'Ошибка валидации (proto.payload: Expected number at 31)');
 });
