@@ -5,10 +5,10 @@
 <path d="M107 55v25h25" fill="none" stroke="#7b9cc9" stroke-width="3"/>
 <rect x="62" y="103" width="58" height="28" rx="5" fill="#2563dc"/><text x="72" y="124" fill="white" font-size="21" font-weight="700">ZIP</text>
 <text x="154" y="92" font-size="18" fill="#5a6c87">Скачанный файл</text>
-<text x="154" y="128" font-size="21" font-weight="600">Max-Chat-Export-0.4.0.zip</text>
+<text x="154" y="128" font-size="21" font-weight="600">Max-Chat-Export-0.6.1.zip</text>
 <path d="M470 110h110m-18-13 18 13-18 13" fill="none" stroke="#2563dc" stroke-width="4"/>
 <text x="466" y="162" font-size="18">«Извлечь всё…»</text>
 <path d="M639 75h39l12 14h60v75H639z" fill="#ffd269" stroke="#d6a039" stroke-width="2"/>
 <text x="774" y="92" font-size="18" fill="#5a6c87">Получится папка</text>
-<text x="774" y="128" font-size="21" font-weight="600">Max-Chat-Export-0.4.0</text>
+<text x="774" y="128" font-size="21" font-weight="600">Max-Chat-Export-0.6.1</text>
 </g></svg>
