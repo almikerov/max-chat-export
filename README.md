@@ -8,9 +8,9 @@
 
 ### Шаг 1. Скачайте расширение и распакуйте файл.
 
-[Скачать Max-Chat-Export-0.4.0.zip](https://github.com/almikerov/max-chat-export/releases/download/v0.4.0/Max-Chat-Export-0.4.0.zip). Найдите файл в «Загрузках», нажмите правой кнопкой мыши и выберите «Извлечь всё…». Оставьте имя папки **Max-Chat-Export-0.4.0**.
+[Скачать Max-Chat-Export-0.6.1.zip](https://github.com/almikerov/max-chat-export/releases/download/v0.6.1/Max-Chat-Export-0.6.1.zip). Найдите файл в «Загрузках», нажмите правой кнопкой мыши и выберите «Извлечь всё…». Оставьте имя папки **Max-Chat-Export-0.6.1**.
 
-<img src="https://raw.githubusercontent.com/almikerov/max-chat-export/main/guide/download-card.png" alt="Схема: скачанный файл и папка Max-Chat-Export-0.4.0 после распаковки" width="760">
+<img src="https://raw.githubusercontent.com/almikerov/max-chat-export/main/guide/download-card.png" alt="Схема: скачанный файл и папка Max-Chat-Export-0.6.1 после распаковки" width="760">
 
 ### Шаг 2. Откройте страницу расширений.
 
@@ -20,7 +20,7 @@
 
 ### Шаг 3. Установите расширение.
 
-Нажмите **«Загрузить распакованное расширение»** слева и выберите папку **Max-Chat-Export-0.4.0** в «Загрузках».
+Нажмите **«Загрузить распакованное расширение»** слева и выберите папку **Max-Chat-Export-0.6.1** в «Загрузках».
 
 <img src="https://raw.githubusercontent.com/almikerov/max-chat-export/main/guide/chrome-load-card.png" alt="Кнопка загрузки распакованного расширения слева" width="760">
 
@@ -46,9 +46,9 @@
 
 ### Шаг 1. Скачайте расширение и распакуйте файл.
 
-[Скачать Max-Chat-Export-0.4.0.zip](https://github.com/almikerov/max-chat-export/releases/download/v0.4.0/Max-Chat-Export-0.4.0.zip). Найдите файл в «Загрузках», нажмите правой кнопкой мыши и выберите «Извлечь всё…». Оставьте имя папки **Max-Chat-Export-0.4.0**.
+[Скачать Max-Chat-Export-0.6.1.zip](https://github.com/almikerov/max-chat-export/releases/download/v0.6.1/Max-Chat-Export-0.6.1.zip). Найдите файл в «Загрузках», нажмите правой кнопкой мыши и выберите «Извлечь всё…». Оставьте имя папки **Max-Chat-Export-0.6.1**.
 
-<img src="https://raw.githubusercontent.com/almikerov/max-chat-export/main/guide/download-card.png" alt="Схема: скачанный файл и папка Max-Chat-Export-0.4.0 после распаковки" width="760">
+<img src="https://raw.githubusercontent.com/almikerov/max-chat-export/main/guide/download-card.png" alt="Схема: скачанный файл и папка Max-Chat-Export-0.6.1 после распаковки" width="760">
 
 ### Шаг 2. Откройте страницу расширений.
 
@@ -58,7 +58,7 @@
 
 ### Шаг 3. Установите расширение.
 
-Нажмите **«Загрузить распакованное расширение»** слева и выберите папку **Max-Chat-Export-0.4.0** в «Загрузках».
+Нажмите **«Загрузить распакованное расширение»** слева и выберите папку **Max-Chat-Export-0.6.1** в «Загрузках».
 
 <img src="https://raw.githubusercontent.com/almikerov/max-chat-export/main/guide/opera-load-card.png" alt="Кнопка загрузки распакованного расширения слева" width="760">
 
